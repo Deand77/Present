@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "present",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-01-15",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+  // To set the Anthropic API key server-side (so users don't need to add their
+  // own in Settings), run:
+  //   npx wrangler secret put ANTHROPIC_API_KEY
+  // ⚠️  Only do this if the deploy is gated behind auth or only you have the
+  // URL — otherwise anyone who finds the site can spend your Anthropic credit.
+}

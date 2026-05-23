@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import type Anthropic from "@anthropic-ai/sdk";
 import { client, PROTOCOL_MODEL, buildProfilesContext, resolveApiKey } from "@/lib/claude";
 import type { Profiles } from "@/lib/types";
 
 export const runtime = "nodejs";
-// Vercel Pro caps at 300s. Hobby caps at 60s — self-hosters on Hobby will need
-// to drop this to 60. Locally there's no cap.
+// We stream now, so the wall-clock never matters — bytes flow continuously
+// and the request never idles. This works on Cloudflare Workers, Vercel
+// (any tier), and Node hosts uniformly.
 export const maxDuration = 300;
 
 const SYSTEM = `You are a thoughtful relationship coach drawing on attachment theory, the Gottman Method, Nonviolent Communication, and contemporary research on emotional attunement.
@@ -42,55 +42,78 @@ A short section addressed to the partner, on how they can help Person A show up 
 Length: thorough but not bloated. Aim for 1200–1800 words total. Quote phrases from their answers when it makes the advice land harder.`;
 
 export async function POST(req: NextRequest) {
+  let apiKey: string | undefined;
+  let profiles: Profiles;
   try {
-    const { apiKey, profiles } = (await req.json()) as {
-      apiKey?: string;
-      profiles: Profiles;
-    };
-
-    const resolvedKey = resolveApiKey(apiKey);
-    if (!resolvedKey) {
-      return NextResponse.json({ error: "Missing API key" }, { status: 400 });
-    }
-    if (!profiles.you || !profiles.partner) {
-      return NextResponse.json(
-        { error: "Both profiles must be completed first" },
-        { status: 400 },
-      );
-    }
-
-    const profileContext = buildProfilesContext(profiles);
-
-    const anthropic = client(resolvedKey);
-    const response = await anthropic.messages.create({
-      model: PROTOCOL_MODEL,
-      max_tokens: 16000,
-      thinking: { type: "adaptive" },
-      system: [
-        { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
-        { type: "text", text: `Profiles:\n\n${profileContext}` },
-      ],
-      messages: [
-        {
-          role: "user",
-          content:
-            "Design the protocol now. Be specific, warm, and concrete. Use their names throughout.",
-        },
-      ],
-    });
-
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("\n");
-
-    return NextResponse.json({
-      content: text,
-      model: response.model,
-      usage: response.usage,
-    });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const body = (await req.json()) as { apiKey?: string; profiles: Profiles };
+    apiKey = body.apiKey;
+    profiles = body.profiles;
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
+
+  const resolvedKey = resolveApiKey(apiKey);
+  if (!resolvedKey) {
+    return NextResponse.json({ error: "Missing API key" }, { status: 400 });
+  }
+  if (!profiles.you || !profiles.partner) {
+    return NextResponse.json(
+      { error: "Both profiles must be completed first" },
+      { status: 400 },
+    );
+  }
+
+  const profileContext = buildProfilesContext(profiles);
+  const anthropic = client(resolvedKey);
+
+  const stream = anthropic.messages.stream({
+    model: PROTOCOL_MODEL,
+    max_tokens: 16000,
+    thinking: { type: "adaptive" },
+    system: [
+      { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
+      { type: "text", text: `Profiles:\n\n${profileContext}` },
+    ],
+    messages: [
+      {
+        role: "user",
+        content:
+          "Design the protocol now. Be specific, warm, and concrete. Use their names throughout.",
+      },
+    ],
+  });
+
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        for await (const event of stream) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta"
+          ) {
+            controller.enqueue(encoder.encode(event.delta.text));
+          }
+        }
+        controller.close();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Stream error";
+        // Surface the error inline so the client sees it instead of a silent cut.
+        controller.enqueue(
+          encoder.encode(`\n\n[stream error: ${message}]`),
+        );
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(body, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "X-Model": PROTOCOL_MODEL,
+      "X-Accel-Buffering": "no",
+      "Cache-Control": "no-store",
+    },
+  });
 }

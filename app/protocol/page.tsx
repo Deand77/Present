@@ -15,6 +15,7 @@ export default function ProtocolPage() {
   const [hasKey, setHasKey] = useState(false);
   const [profiles, setProfilesState] = useState<Profiles>({});
   const [protocol, setProtocolState] = useState<Protocol | null>(null);
+  const [streaming, setStreaming] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [hydrated, setHydrated] = useState(false);
@@ -45,19 +46,35 @@ export default function ProtocolPage() {
   const generate = async () => {
     setLoading(true);
     setError("");
+    setStreaming("");
     try {
       const res = await fetch("/api/generate-protocol", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ apiKey: getApiKey(), profiles: getProfiles() }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to generate");
+      if (!res.ok) {
+        // Errors come back as JSON, not stream.
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      const model = res.headers.get("X-Model") || "claude-opus-4-7";
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("Streaming not supported by this browser");
+      const decoder = new TextDecoder();
+      let content = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        content += decoder.decode(value, { stream: true });
+        setStreaming(content);
+      }
+      content += decoder.decode();
       const now = new Date();
       const next: Protocol = {
         generatedAt: now.toISOString(),
-        model: data.model,
-        content: data.content,
+        model,
+        content,
         basedOn: {
           you: profiles.you?.updatedAt,
           partner: profiles.partner?.updatedAt,
@@ -65,12 +82,17 @@ export default function ProtocolPage() {
       };
       setProtocol(next);
       setProtocolState(next);
+      setStreaming("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
+      setStreaming("");
     } finally {
       setLoading(false);
     }
   };
+
+  // Show whichever has content: the in-flight stream, or the saved protocol.
+  const visibleContent = streaming || protocol?.content || "";
 
   return (
     <div>
@@ -102,7 +124,7 @@ export default function ProtocolPage() {
 
       {hydrated && hasKey && hasBothProfiles && (
         <>
-          {stale && (
+          {stale && !loading && (
             <div className="border border-accent/40 bg-accent/5 text-ink rounded p-4 mb-6">
               <strong className="text-accent">One or both profiles have changed</strong>{" "}
               since this protocol was generated.{" "}
@@ -129,19 +151,23 @@ export default function ProtocolPage() {
                   ? "Regenerate"
                   : "Generate protocol"}
             </button>
-            {protocol && (
+            {protocol && !loading && (
               <span className="text-sm text-muted">
                 Last generated {new Date(protocol.generatedAt).toLocaleString()}
               </span>
             )}
+            {loading && streaming && (
+              <span className="text-sm text-muted italic">
+                Streaming… ({streaming.length} chars)
+              </span>
+            )}
+            {loading && !streaming && (
+              <span className="text-sm text-muted italic">
+                Thinking…
+              </span>
+            )}
           </div>
         </>
-      )}
-
-      {loading && (
-        <div className="text-muted italic">
-          Thinking carefully about your two profiles. This usually takes 30–90 seconds…
-        </div>
       )}
 
       {error && (
@@ -150,9 +176,15 @@ export default function ProtocolPage() {
         </div>
       )}
 
-      {protocol?.content && !loading && (
+      {visibleContent && (
         <article className="bg-white/60 border border-line rounded-lg p-8">
-          <Markdown content={protocol.content} />
+          <Markdown content={visibleContent} />
+          {loading && streaming && (
+            <span
+              className="inline-block w-2 h-5 ml-1 bg-accent animate-pulse align-text-bottom"
+              aria-hidden="true"
+            />
+          )}
         </article>
       )}
     </div>
