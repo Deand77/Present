@@ -13,12 +13,33 @@ Present runs on Cloudflare Workers via [@opennextjs/cloudflare](https://opennext
 
 ## Deploy
 
+You have two options.
+
+### Option A — local one-shot deploy
+
 ```sh
 npm install
+npx wrangler login
 npm run cf:deploy
 ```
 
-That's it. Wrangler will print the deployed URL (something like `https://present.<your-subdomain>.workers.dev`).
+`wrangler login` uses a browser OAuth flow — no long-lived token, no secret on disk. After deploy, Wrangler will print the URL (`https://present.<your-subdomain>.workers.dev`).
+
+### Option B — GitHub Actions (auto-deploy on push to main)
+
+The repo has `.github/workflows/deploy.yml`. To enable it:
+
+1. **Create a Cloudflare API token** at https://dash.cloudflare.com/profile/api-tokens — use the "Edit Cloudflare Workers" template. No TTL needed since GitHub holds it as a secret; just make sure you rotate annually.
+
+2. **Find your Account ID** on https://dash.cloudflare.com (right side of the dashboard home page).
+
+3. **Add both as repository secrets** at `https://github.com/<you>/present/settings/secrets/actions`:
+   - `CLOUDFLARE_API_TOKEN`
+   - `CLOUDFLARE_ACCOUNT_ID`
+
+4. **Push to main** — or trigger manually via the Actions tab → "Deploy to Cloudflare" → "Run workflow". Every push to main now builds and deploys.
+
+The workflow uses Node 22, runs `npm ci`, then `npm run cf:deploy`. Concurrency is set so a rapid second push cancels the first in-flight deploy.
 
 ## Local preview of the Cloudflare build
 
