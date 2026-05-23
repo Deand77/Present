@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { client, MODEL, buildProfilesContext } from "@/lib/claude";
+import type Anthropic from "@anthropic-ai/sdk";
+import { client, PROTOCOL_MODEL, buildProfilesContext, resolveApiKey } from "@/lib/claude";
 import type { Profiles } from "@/lib/types";
 
 export const runtime = "nodejs";
+// Vercel Pro caps at 300s. Hobby caps at 60s — self-hosters on Hobby will need
+// to drop this to 60. Locally there's no cap.
 export const maxDuration = 300;
 
 const SYSTEM = `You are a thoughtful relationship coach drawing on attachment theory, the Gottman Method, Nonviolent Communication, and contemporary research on emotional attunement.
@@ -41,25 +44,26 @@ Length: thorough but not bloated. Aim for 1200–1800 words total. Quote phrases
 export async function POST(req: NextRequest) {
   try {
     const { apiKey, profiles } = (await req.json()) as {
-      apiKey: string;
+      apiKey?: string;
       profiles: Profiles;
     };
 
-    if (!apiKey) {
+    const resolvedKey = resolveApiKey(apiKey);
+    if (!resolvedKey) {
       return NextResponse.json({ error: "Missing API key" }, { status: 400 });
     }
     if (!profiles.you || !profiles.partner) {
       return NextResponse.json(
         { error: "Both profiles must be completed first" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const profileContext = buildProfilesContext(profiles);
 
-    const anthropic = client(apiKey);
+    const anthropic = client(resolvedKey);
     const response = await anthropic.messages.create({
-      model: MODEL,
+      model: PROTOCOL_MODEL,
       max_tokens: 16000,
       thinking: { type: "adaptive" },
       system: [
@@ -76,8 +80,8 @@ export async function POST(req: NextRequest) {
     });
 
     const text = response.content
-      .filter((b) => b.type === "text")
-      .map((b) => (b as { type: "text"; text: string }).text)
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
       .join("\n");
 
     return NextResponse.json({

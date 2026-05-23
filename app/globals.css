@@ -2,20 +2,116 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-  background: #F4F1EA;
-  color: #2A2724;
-  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', ui-serif, serif;
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&display=swap');
+
+html,
+body {
+  background: #f4f1ea;
+  color: #2a2724;
+  font-family: 'Newsreader', Georgia, 'Iowan Old Style', 'Palatino Linotype', ui-serif, serif;
+  font-feature-settings: 'kern', 'liga';
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
-.prose-app h1 { font-size: 1.875rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; }
-.prose-app h2 { font-size: 1.375rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; color: #B85C38; }
-.prose-app h3 { font-size: 1.125rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.25rem; }
-.prose-app p { margin-bottom: 0.75rem; line-height: 1.7; }
-.prose-app ul { list-style: disc; margin-left: 1.5rem; margin-bottom: 0.75rem; }
-.prose-app ol { list-style: decimal; margin-left: 1.5rem; margin-bottom: 0.75rem; }
-.prose-app li { margin-bottom: 0.25rem; line-height: 1.7; }
-.prose-app strong { font-weight: 600; }
-.prose-app em { font-style: italic; }
-.prose-app code { background: #E4DFD4; padding: 0.1rem 0.3rem; border-radius: 0.25rem; }
-.prose-app blockquote { border-left: 3px solid #B85C38; padding-left: 1rem; color: #6E6962; margin: 0.75rem 0; }
+.prose-app h1 {
+  font-size: 1.875rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.2;
+}
+.prose-app h2 {
+  font-size: 1.375rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #b85c38;
+  line-height: 1.25;
+}
+.prose-app h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.25rem;
+}
+.prose-app p {
+  margin-bottom: 0.75rem;
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+.prose-app ul {
+  list-style: disc;
+  margin-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+.prose-app ol {
+  list-style: decimal;
+  margin-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+.prose-app li {
+  margin-bottom: 0.25rem;
+  line-height: 1.7;
+}
+.prose-app strong {
+  font-weight: 600;
+}
+.prose-app em {
+  font-style: italic;
+}
+.prose-app code {
+  background: #e4dfd4;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.9em;
+}
+.prose-app pre {
+  background: #e4dfd4;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+  font-size: 0.9em;
+}
+.prose-app pre code {
+  background: transparent;
+  padding: 0;
+}
+.prose-app blockquote {
+  border-left: 3px solid #b85c38;
+  padding-left: 1rem;
+  color: #6e6962;
+  margin: 0.75rem 0;
+  font-style: italic;
+}
+.prose-app a {
+  color: #b85c38;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-app a:hover {
+  color: #8f4528;
+}
+.prose-app table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.95em;
+}
+.prose-app th,
+.prose-app td {
+  border: 1px solid #e4dfd4;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.prose-app th {
+  background: #e4dfd4;
+  font-weight: 600;
+}
+.prose-app hr {
+  border: 0;
+  border-top: 1px solid #e4dfd4;
+  margin: 1.5rem 0;
+}

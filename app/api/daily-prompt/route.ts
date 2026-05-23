@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { client, MODEL, buildProfilesContext } from "@/lib/claude";
+import type Anthropic from "@anthropic-ai/sdk";
+import { client, DAILY_MODEL, buildProfilesContext, resolveApiKey } from "@/lib/claude";
 import type { Profiles, Protocol, DailyEntry } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+// Vercel: Hobby caps at 60s, Pro at 300s. Daily prompts are short — 60 is plenty.
+export const maxDuration = 60;
 
 const SYSTEM = `You are a relationship coach generating a single, specific check-in prompt for the user — Person A — to help them be more present with their partner today.
 
@@ -27,19 +29,20 @@ Keep the whole thing under 150 words. Format as Markdown with the three sections
 export async function POST(req: NextRequest) {
   try {
     const { apiKey, profiles, protocol, recentDaily } = (await req.json()) as {
-      apiKey: string;
+      apiKey?: string;
       profiles: Profiles;
       protocol?: Protocol;
       recentDaily?: DailyEntry[];
     };
 
-    if (!apiKey) {
+    const resolvedKey = resolveApiKey(apiKey);
+    if (!resolvedKey) {
       return NextResponse.json({ error: "Missing API key" }, { status: 400 });
     }
     if (!profiles.you || !profiles.partner) {
       return NextResponse.json(
         { error: "Both profiles must be completed first" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -67,11 +70,11 @@ ${protocol ? `Protocol summary you previously designed:\n\n${protocol.content.sl
 
 Give me today's check-in.`;
 
-    const anthropic = client(apiKey);
+    const anthropic = client(resolvedKey);
+    // Haiku 4.5: cheap, fast, no thinking needed for a short Markdown reply.
     const response = await anthropic.messages.create({
-      model: MODEL,
+      model: DAILY_MODEL,
       max_tokens: 1500,
-      thinking: { type: "adaptive" },
       system: [
         { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
         { type: "text", text: `Profiles:\n\n${profileContext}`, cache_control: { type: "ephemeral" } },
@@ -80,11 +83,11 @@ Give me today's check-in.`;
     });
 
     const text = response.content
-      .filter((b) => b.type === "text")
-      .map((b) => (b as { type: "text"; text: string }).text)
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
       .join("\n");
 
-    return NextResponse.json({ content: text, usage: response.usage });
+    return NextResponse.json({ content: text, model: response.model, usage: response.usage });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

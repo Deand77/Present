@@ -4,45 +4,29 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getProfiles, getProtocol, getApiKey } from "@/lib/storage";
 
-export default function Home() {
-  const [state, setState] = useState({
-    hasKey: false,
-    you: false,
-    partner: false,
-    protocol: false,
-  });
-
-  useEffect(() => {
-    const p = getProfiles();
-    setState({
-      hasKey: !!getApiKey(),
-      you: !!p.you,
-      partner: !!p.partner,
-      protocol: !!getProtocol(),
-    });
-  }, []);
-
-  const Step = ({
-    n,
-    title,
-    desc,
-    done,
-    href,
-    cta,
-  }: {
-    n: number;
-    title: string;
-    desc: string;
-    done: boolean;
-    href: string;
-    cta: string;
-  }) => (
+function Step({
+  n,
+  title,
+  desc,
+  done,
+  href,
+  cta,
+}: {
+  n: number;
+  title: string;
+  desc: string;
+  done: boolean;
+  href: string;
+  cta: string;
+}) {
+  return (
     <li className="flex gap-4 py-5 border-b border-line last:border-0">
       <div
         className={
           "shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm " +
           (done ? "bg-accent text-bg" : "bg-line text-muted")
         }
+        aria-hidden="true"
       >
         {done ? "✓" : n}
       </div>
@@ -58,6 +42,27 @@ export default function Home() {
       </Link>
     </li>
   );
+}
+
+export default function Home() {
+  const [state, setState] = useState({
+    hasKey: false,
+    you: false,
+    partner: false,
+    protocol: false,
+    hydrated: false,
+  });
+
+  useEffect(() => {
+    const p = getProfiles();
+    setState({
+      hasKey: !!getApiKey(),
+      you: !!p.you,
+      partner: !!p.partner,
+      protocol: !!getProtocol(),
+      hydrated: true,
+    });
+  }, []);
 
   return (
     <div>
@@ -81,7 +86,7 @@ export default function Home() {
             n={1}
             title="Add your Anthropic API key"
             desc="Stored locally in your browser. Used to generate your protocol and daily check-ins."
-            done={state.hasKey}
+            done={state.hydrated && state.hasKey}
             href="/settings"
             cta="Add key"
           />
@@ -89,15 +94,15 @@ export default function Home() {
             n={2}
             title="Profile yourself"
             desc="About 20 questions on attachment, support, triggers, and what helps you feel seen."
-            done={state.you}
+            done={state.hydrated && state.you}
             href="/profile/you"
             cta="Start"
           />
           <Step
             n={3}
             title="Profile your partner"
-            desc="The same questions, from their perspective. Best done together, honestly."
-            done={state.partner}
+            desc="The same questions, with their actual answers. Best done together, honestly."
+            done={state.hydrated && state.partner}
             href="/profile/partner"
             cta="Start"
           />
@@ -105,7 +110,7 @@ export default function Home() {
             n={4}
             title="Generate your protocol"
             desc="Claude designs a tailored operating manual from both profiles."
-            done={state.protocol}
+            done={state.hydrated && state.protocol}
             href="/protocol"
             cta="Generate"
           />
@@ -120,11 +125,24 @@ export default function Home() {
         </ol>
       </section>
 
-      <section className="mt-10 text-sm text-muted">
+      <section className="mt-10 text-sm text-muted leading-relaxed">
         <p>
-          All data stays on this device. Nothing is sent anywhere except
-          Anthropic's API, using your own key. You can export or delete
-          everything from <Link href="/settings" className="underline">Settings</Link>.
+          All data — profiles, protocols, reflections — stays in this browser.
+          Your API key is sent through this app's backend to{" "}
+          <a
+            href="https://anthropic.com"
+            className="underline"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Anthropic
+          </a>{" "}
+          to generate the protocol and daily prompts, and goes nowhere else.
+          Export or delete everything from{" "}
+          <Link href="/settings" className="underline">
+            Settings
+          </Link>
+          .
         </p>
       </section>
     </div>

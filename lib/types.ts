@@ -20,6 +20,7 @@ export type Protocol = {
   generatedAt: string;
   model: string;
   content: string;
+  basedOn?: { you?: string; partner?: string };
 };
 
 export type DailyEntry = {
@@ -29,6 +30,7 @@ export type DailyEntry = {
 };
 
 export type AppData = {
+  version?: number;
   apiKey?: string;
   profiles: Profiles;
   protocol?: Protocol;

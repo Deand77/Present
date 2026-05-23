@@ -56,9 +56,11 @@ export default function SettingsPage() {
           >
             console.anthropic.com
           </a>
-          . The key stays on this device — it's stored in your browser's
-          localStorage and only sent to Anthropic's API through this app's
-          backend, never to anywhere else.
+          . The key is stored in this browser's localStorage. On each request
+          it's sent to this app's own backend (which forwards it to Anthropic)
+          and goes nowhere else. Self-hosters can instead set{" "}
+          <code className="bg-line px-1 rounded text-xs">ANTHROPIC_API_KEY</code>{" "}
+          as a server env var and skip this field.
         </p>
         <input
           type="password"
@@ -84,6 +86,7 @@ export default function SettingsPage() {
         <h2 className="text-lg font-semibold mb-2">Export your data</h2>
         <p className="text-muted text-sm mb-4">
           Download a JSON file with your profiles, protocol, and daily entries.
+          Your API key is redacted from the export.
         </p>
         <button
           onClick={exportData}
